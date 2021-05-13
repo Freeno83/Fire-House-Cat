@@ -1,8 +1,7 @@
 """
 Fire House Cat - Pickles Fire Pole
-Last Modified by Nick Robinson 23rd Feb 2021
+Last Modified by Nick Robinson 12th May 2021
 This circuit python code has the following function/flow:
-
 1) At boot up, move Pickels to the top of the pole if not already there
 2) Once at the top of the pole, wait for a timer or user input (botton push, etc.)
 3) Upon receiving user input, pickles drops down the pole, slowing near the bottom
@@ -61,7 +60,7 @@ for output in [sound, light, brake, clutch, motor]:
 
 for input in [drop, upper_stop, lower_slow]:
     input.direction = Direction.INPUT
-    input.pull = Pull.DOWN
+    input.pull = Pull.UP
 
 
 # User defined functions
@@ -83,25 +82,33 @@ def rising_edge(curr_val, prev_val):
 	else:
 	    return False
 
+def falling_edge(curr_val, prev_val):
+    """Determines if a falling edge event has occured"""
+    if curr_val is not prev_val:
+        if curr_val is False:
+            return True
+	else:
+	    return False
+
 
 def home_pickles():
     """Return pickles to the top of the pole smoothly"""
     at_top = False
 
-    if upper_stop.value is True: # Check if pickles is already at the top
+    if upper_stop.value is False: # Check if pickles is already at the top
 	at_top = True
         set_drive(True, False, False)
 
-    prev_upper_stop = False
+    prev_upper_stop = True
     while not at_top: # If pickles is not at top, move him there
         set_drive(False, True, True)
 
-        if rising_edge(upper_stop.value, prev_upper_stop):
+        if falling_edge(upper_stop.value, prev_upper_stop):
             at_top = True
             set_drive(True, False, False)
 
         prev_upper_stop = upper_stop.value
-        time.sleep(0.001)
+        time.sleep(0.005)
 
 
 home_pickles()
@@ -109,12 +116,12 @@ print_status("Homed")
 
 # Main Program
 state = 0
-prev_drop = False
+prev_drop = True
 cycle_start = time.monotonic()
 
 while True:
     if state is 0:
-        if rising_edge(drop.value, prev_drop) or time.monotonic()-cycle_start > CYCLE_TIME*60:
+        if falling_edge(drop.value, prev_drop) or time.monotonic()-cycle_start > CYCLE_TIME*60:
             print_status("Dropping")
             state = 1
 
@@ -123,7 +130,7 @@ while True:
         set_drive(False, False, False)
         sound.value, light.value = True, True
 
-        if rising_edge(lower_slow.value, prev_lower_slow):
+        if falling_edge(lower_slow.value, prev_lower_slow):
             slow_start = time.monotonic()
             print_status("Stopping")
 
@@ -161,7 +168,7 @@ while True:
         if drive_time > CLIMB_RUN+CLIMB_FALL+CLIMB_PAUSE:
             drive_start = time.monotonic() # reset climb cycle timer
 
-        if rising_edge(upper_stop.value, prev_upper_stop):
+        if falling_edge(upper_stop.value, prev_upper_stop):
             set_drive(True, False, False) # stop when the upper sensor is reached
             cycle_start = time.monotonic()
             print_status("Top reached")
@@ -171,4 +178,4 @@ while True:
     prev_drop = drop.value
     prev_lower_slow = lower_slow.value
     prev_upper_stop = upper_stop.value
-    time.sleep(0.001)
+    time.sleep(0.005)
